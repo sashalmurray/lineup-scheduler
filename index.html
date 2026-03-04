@@ -394,11 +394,27 @@
 
         .slot-row.cancelled td {
             text-decoration: line-through !important;
+            color: #dc2626 !important;
         }
         
         .slot-row.cancelled input,
         .slot-row.cancelled select {
             text-decoration: line-through !important;
+            color: #dc2626 !important;
+        }
+        
+        .slot-row.done {
+            background-color: #f3f4f6 !important;
+        }
+        
+        .slot-row.done td {
+            color: #6b7280 !important;
+        }
+        
+        .slot-row.done input,
+        .slot-row.done select {
+            color: #6b7280 !important;
+            background-color: transparent !important;
         }
 
         .session-header {
@@ -1609,9 +1625,32 @@
         }
 
     </style>
+    
+    <!-- Clerk Authentication SDK -->
+    <script
+        async
+        crossorigin="anonymous"
+        data-clerk-publishable-key="pk_test_aGFwcHktY2FpbWFuLTExLmNsZXJrLmFjY291bnRzLmRldiQ"
+        src="https://accounts.clerk.com/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
+        type="text/javascript"
+    ></script>
 </head>
 <body>
-    <!-- Login Screen -->
+    <!-- Clerk Authentication Screen -->
+    <div id="clerkAuthScreen" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #577B7A 0%, #4A9B96 100%); z-index: 10001; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 40px; border-radius: 12px; max-width: 450px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #577B7A; margin-bottom: 10px;">LineUp+</h1>
+                <p style="color: #666; font-size: 14px;">Medical Scheduling System</p>
+                <p style="color: #999; font-size: 12px; margin-top: 10px;">Sign in to access the schedule</p>
+            </div>
+            
+            <!-- Clerk Sign-In Component -->
+            <div id="clerk-sign-in"></div>
+        </div>
+    </div>
+    
+    <!-- Login Screen (Legacy - Hidden) -->
     <div id="loginScreen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #577B7A 0%, #4A9B96 100%); z-index: 10001; align-items: center; justify-content: center;">
         <div style="background: white; padding: 40px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
             <div style="text-align: center; margin-bottom: 30px;">
@@ -1677,6 +1716,7 @@
                 <button class="tab" onclick="showTab('daily-overview')">DAILY OVERVIEW</button>
                 <button class="tab" onclick="showTab('emergency')">EMERGENCY</button>
                 <button class="tab" onclick="showTab('doctors')">MANAGEMENT</button>
+                <button class="tab" onclick="showTab('activity')">ACTIVITY LOG</button>
             </div>
 
             <div style="flex: 1;">
@@ -1827,6 +1867,11 @@
                 <!-- Weekend booking sessions will be rendered here -->
             </div>
             
+            <!-- Clear Weekend Bookings Button -->
+            <div class="no-print" style="text-align: center; padding: 20px; margin-top: 20px;">
+                <button onclick="clearAllWeekendBookings()" class="danger" style="padding: 12px 30px; font-size: 14px;">🗑️ Clear All Weekend Bookings</button>
+            </div>
+            
             <!-- PREMEDS SUBSECTION with toggle -->
             <div class="no-print" style="margin-top: 40px; text-align: center;">
                 <button onclick="togglePremedsSection()" id="togglePremedsBtn" class="add-slot-btn" style="padding: 10px 20px; font-size: 14px;">+ Show Premeds</button>
@@ -1849,8 +1894,9 @@
                     <tbody id="premedsBody">
                     </tbody>
                 </table>
-                <div class="no-print" style="text-align: center; padding: 10px; background: #f5f5f5; margin-top: 10px;">
+                <div class="no-print" style="text-align: center; padding: 10px; background: #f5f5f5; margin-top: 10px; display: flex; gap: 10px; justify-content: center;">
                     <button onclick="addPremed()" class="add-slot-btn">+ Add Premed</button>
+                    <button onclick="clearAllPremeds()" class="danger" style="padding: 8px 20px;">🗑️ Clear All Premeds</button>
                 </div>
             </div>
         </div>
@@ -1904,6 +1950,37 @@
                     <button onclick="createNewTemplate()">+ New Template</button>
                 </div>
                 <div id="templatesList"></div>
+            </div>
+        </div>
+
+        <!-- ACTIVITY LOG TAB -->
+        <div id="activityTab" class="tab-content">
+            <div style="background: #577B7A; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                <h2 style="margin: 0; font-size: 20px;">📋 ACTIVITY LOG</h2>
+                <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">Track all changes made to the schedule</p>
+            </div>
+            
+            <div style="padding: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <label style="margin-right: 10px; font-weight: 600;">Filter by user:</label>
+                        <select id="activityUserFilter" onchange="renderActivityLog()" style="padding: 8px; border: 2px solid #ddd; border-radius: 6px;">
+                            <option value="">All Users</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="margin-right: 10px; font-weight: 600;">Show last:</label>
+                        <select id="activityLimitFilter" onchange="renderActivityLog()" style="padding: 8px; border: 2px solid #ddd; border-radius: 6px;">
+                            <option value="50">50 activities</option>
+                            <option value="100">100 activities</option>
+                            <option value="200">200 activities</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="activityList" style="max-height: 600px; overflow-y: auto;">
+                    <p style="text-align: center; color: #999; padding: 40px;">Loading activities...</p>
+                </div>
             </div>
         </div>
 
@@ -2938,6 +3015,13 @@
         setInterval(saveToLocalStorage, 30000);
 
         document.addEventListener('DOMContentLoaded', function() {
+            // Disable autocomplete globally to prevent browser from inserting cached data
+            document.addEventListener('focus', function(e) {
+                if (e.target.tagName === 'INPUT' && e.target.type === 'text') {
+                    e.target.setAttribute('autocomplete', 'off');
+                }
+            }, true);
+            
             setCurrentDate();
             
             // Firebase is the source of truth for multi-user sync.
@@ -3271,7 +3355,8 @@
                     (tabName === 'weekend-bookings' && tab.textContent === 'WEEKEND BOOKINGS') ||
                     (tabName === 'doctors' && tab.textContent === 'MANAGEMENT') ||
                     (tabName === 'daily-overview' && tab.textContent === 'DAILY OVERVIEW') ||
-                    (tabName === 'emergency' && tab.textContent === 'EMERGENCY')) {
+                    (tabName === 'emergency' && tab.textContent === 'EMERGENCY') ||
+                    (tabName === 'activity' && tab.textContent === 'ACTIVITY LOG')) {
                     tab.classList.add('active');
                 }
             });
@@ -3292,6 +3377,10 @@
 
             if (tabName === 'daily-overview') {
                 updateDailyOverview();
+            }
+            
+            if (tabName === 'activity') {
+                renderActivityLog();
             }
             
             if (tabName === 'emergency') {
@@ -3782,9 +3871,14 @@
                             rowClass += ' time-unknown';
                         }
                         
-                        // Check if cancelled
-                        if (slot.cancelled) {
+                        // Check if cancelled or postponed
+                        if (slot.cancelled || slot.status === 'cancelled' || slot.status === 'postponed') {
                             rowClass += ' cancelled';
+                        }
+                        
+                        // Check if done
+                        if (slot.status === 'done') {
+                            rowClass += ' done';
                         }
                         
                         row.className = rowClass;
@@ -3802,7 +3896,7 @@
                         const surgeonCell = document.createElement('td');
                         surgeonCell.className = 'surgeon-cell';
                         const surgeonSelect = createSurgeonDropdown(slot, date, session);
-                        if (slot.cancelled) {
+                        if (slot.cancelled || slot.status === 'cancelled' || slot.status === 'postponed') {
                             surgeonSelect.style.textDecoration = 'line-through';
                         }
                         surgeonCell.appendChild(surgeonSelect);
@@ -3813,9 +3907,11 @@
                         timeCell.className = 'time-cell';
                         const timeInput = document.createElement('input');
                         timeInput.type = 'text';
+                        timeInput.setAttribute('autocomplete', 'off');
                         timeInput.value = slot.time || '';
                         timeInput.style.cssText = 'width: 100%; border: none; padding: 5px; font-size: 13px; color: black;';
-                        if (slot.cancelled) {
+                        
+                        if (slot.cancelled || slot.status === 'cancelled' || slot.status === 'postponed') {
                             timeInput.style.textDecoration = 'line-through';
                         }
                         timeInput.placeholder = '';
@@ -3973,33 +4069,115 @@
                         notesCell.appendChild(noteIndicator);
                         row.appendChild(notesCell);
                         
-                        // Cancelled checkbox (replaces delete button)
-                        const cancelCell = document.createElement('td');
-                        cancelCell.className = 'no-print';
-                        cancelCell.style.cssText = 'width: 90px; text-align: center;';
-                        const cancelCheckbox = document.createElement('input');
-                        cancelCheckbox.type = 'checkbox';
-                        cancelCheckbox.checked = slot.cancelled || false;
-                        cancelCheckbox.id = `cancel-${slot.id}`;
-                        cancelCheckbox.style.cssText = 'margin-right: 5px;';
-                        cancelCheckbox.onchange = () => {
-                            updateSlotField(slot.id, 'cancelled', cancelCheckbox.checked);
-                            // Update the row styling directly instead of re-rendering
-                            const row = cancelCheckbox.closest('tr');
-                            if (cancelCheckbox.checked) {
-                                row.classList.add('cancelled');
-                            } else {
-                                row.classList.remove('cancelled');
+                        // Status dropdown (replaces cancelled checkbox)
+                        const statusCell = document.createElement('td');
+                        statusCell.className = 'no-print status-cell';
+                        statusCell.style.cssText = 'width: 160px; padding: 4px;';
+                        
+                        const statusSelect = document.createElement('select');
+                        statusSelect.style.cssText = 'width: 100%; padding: 6px 4px; font-size: 12px; border: 2px solid #ddd; border-radius: 4px; font-weight: 600; cursor: pointer;';
+                        statusSelect.innerHTML = `
+                            <option value="">-</option>
+                            <option value="pending">Pending</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="done">Done</option>
+                            <option value="cancelled">Cancelled</option>
+                            <option value="postponed">Postponed</option>
+                        `;
+                        statusSelect.value = slot.status || '';
+                        
+                        // Color code the status dropdown
+                        const updateStatusColor = (status) => {
+                            statusSelect.style.backgroundColor = '';
+                            statusSelect.style.color = '';
+                            statusSelect.style.borderColor = '';
+                            
+                            if (status === 'pending') {
+                                statusSelect.style.backgroundColor = '#fef3c7';
+                                statusSelect.style.color = '#92400e';
+                                statusSelect.style.borderColor = '#f59e0b';
+                            } else if (status === 'in-progress') {
+                                statusSelect.style.backgroundColor = '#dbeafe';
+                                statusSelect.style.color = '#1e40af';
+                                statusSelect.style.borderColor = '#3b82f6';
+                            } else if (status === 'done') {
+                                statusSelect.style.backgroundColor = '#d1fae5';
+                                statusSelect.style.color = '#065f46';
+                                statusSelect.style.borderColor = '#10b981';
+                                
+                                // Add tooltip with timestamp
+                                if (slot.completedAt) {
+                                    statusSelect.title = `Completed: ${slot.completedAt}`;
+                                }
+                            } else if (status === 'cancelled') {
+                                statusSelect.style.backgroundColor = '#fee2e2';
+                                statusSelect.style.color = '#991b1b';
+                                statusSelect.style.borderColor = '#dc2626';
+                            } else if (status === 'postponed') {
+                                statusSelect.style.backgroundColor = '#fce7f3';
+                                statusSelect.style.color = '#831843';
+                                statusSelect.style.borderColor = '#ec4899';
                             }
-                            // Don't re-render - data is saved, styling updated directly
                         };
-                        const cancelLabel = document.createElement('label');
-                        cancelLabel.htmlFor = `cancel-${slot.id}`;
-                        cancelLabel.textContent = 'Cancelled';
-                        cancelLabel.style.cssText = 'cursor: pointer; user-select: none; font-size: 12px;';
-                        cancelCell.appendChild(cancelCheckbox);
-                        cancelCell.appendChild(cancelLabel);
-                        row.appendChild(cancelCell);
+                        
+                        // Apply initial color
+                        updateStatusColor(slot.status);
+                        
+                        // Apply styling based on current status
+                        const applyStatusStyling = (row, status) => {
+                            // Remove all status classes
+                            row.classList.remove('cancelled', 'done');
+                            row.style.textDecoration = '';
+                            row.style.color = '';
+                            row.style.backgroundColor = '';
+                            
+                            if (status === 'cancelled' || status === 'postponed') {
+                                row.classList.add('cancelled');
+                                row.style.textDecoration = 'line-through';
+                                row.style.color = '#dc2626';
+                            } else if (status === 'done') {
+                                row.classList.add('done');
+                                row.style.backgroundColor = '#f3f4f6';
+                                row.style.color = '#6b7280';
+                                
+                                // Add timestamp if not exists
+                                if (!slot.completedAt) {
+                                    const now = new Date();
+                                    const timestamp = now.toLocaleString('en-GB', {
+                                        day: '2-digit',
+                                        month: '2-digit',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    });
+                                    updateSlotField(slot.id, 'completedAt', timestamp);
+                                    statusSelect.title = `Completed: ${timestamp}`;
+                                }
+                            }
+                        };
+                        
+                        // Apply initial styling
+                        applyStatusStyling(row, slot.status);
+                        
+                        statusSelect.onchange = () => {
+                            const newStatus = statusSelect.value;
+                            updateSlotField(slot.id, 'status', newStatus);
+                            
+                            // If changing from done to something else, clear timestamp
+                            if (slot.status === 'done' && newStatus !== 'done') {
+                                updateSlotField(slot.id, 'completedAt', null);
+                                statusSelect.title = '';
+                            }
+                            
+                            // Update dropdown color
+                            updateStatusColor(newStatus);
+                            
+                            // Update row styling
+                            applyStatusStyling(row, newStatus);
+                        };
+                        
+                        statusCell.appendChild(statusSelect);
+                        row.appendChild(statusCell);
                         
                         // Drag handle button
                         const dragCell = document.createElement('td');
@@ -4245,9 +4423,17 @@
             if (confirm('Delete this slot?')) {
                 const index = scheduleData.findIndex(s => s.id === slotId);
                 if (index !== -1) {
+                    const slot = scheduleData[index];
+                    
                     // Set flag BEFORE any changes
                     isLocalUpdate = true;
                     scheduleData.splice(index, 1);
+                    
+                    // Mark this date as manually edited to prevent template auto-import
+                    if (slot.date) {
+                        templatesAppliedDates.add(slot.date);
+                    }
+                    
                     renderSchedule();
                     saveToLocalStorage(); // This also triggers debounced Firebase push
                 }
@@ -4361,14 +4547,14 @@
                     <td><input type="text" value="${emergency.estStart || ''}" onchange="updateEmergencyField(${emergency.id}, 'estStart', this.value)" style="width: 100%; font-size: 12px; background: transparent;" placeholder="HH:MM"></td>
                     <td><input type="text" value="${emergency.patientName || ''}" onchange="updateEmergencyField(${emergency.id}, 'patientName', this.value)" style="width: 100%; font-size: 12px; background: transparent;"></td>
                     <td>
-                        <input type="text" value="${emergency.surgeonId ? (doctors.surgeons.find(s => s.id === emergency.surgeonId)?.name || '') : ''}" list="surgeon-list-emerg-${emergency.id}" onchange="updateEmergencySurgeon(${emergency.id}, this.value)" style="width: 100%; font-size: 12px; background: transparent;" placeholder="Type to search...">
+                        <input type="text" value="${emergency.surgeonId ? (doctors.surgeons.find(s => s.id === emergency.surgeonId)?.name || '') : ''}" list="surgeon-list-emerg-${emergency.id}" onchange="updateEmergencySurgeon(${emergency.id}, this.value)" style="width: 100%; font-size: 12px; background: transparent;" placeholder="">
                         <datalist id="surgeon-list-emerg-${emergency.id}">
                             ${doctors.surgeons.map(s => `<option value="${s.name}" data-id="${s.id}"></option>`).join('')}
                         </datalist>
                     </td>
                     <td style="padding: 8px;"><textarea oninput="autoResizeTextarea(this)" onchange="updateEmergencyField(${emergency.id}, 'procedure', this.value)" style="width: 100%; height: auto; min-height: 22px; resize: vertical; border: 1px solid #ddd; padding: 5px; font-family: inherit; font-size: 12px; white-space: normal; word-wrap: break-word; overflow-wrap: break-word; overflow: hidden; background: transparent;" rows="1">${emergency.procedure || ''}</textarea></td>
                     <td>
-                        <input type="text" value="${emergency.partnerId ? (getAvailablePartnersForEmergency(date).find(p => p.id === emergency.partnerId)?.display || '') : ''}" list="partner-list-emerg-${emergency.id}" onchange="updateEmergencyPartner(${emergency.id}, this.value, '${date}')" style="width: 100%; font-size: 12px; background: transparent; white-space: normal; word-wrap: break-word; overflow-wrap: break-word;" placeholder="Type to search...">
+                        <input type="text" value="${emergency.partnerId ? (getAvailablePartnersForEmergency(date).find(p => p.id === emergency.partnerId)?.display || '') : ''}" list="partner-list-emerg-${emergency.id}" onchange="updateEmergencyPartner(${emergency.id}, this.value, '${date}')" style="width: 100%; font-size: 12px; background: transparent; white-space: normal; word-wrap: break-word; overflow-wrap: break-word;" placeholder="">
                         <datalist id="partner-list-emerg-${emergency.id}">
                             ${getAvailablePartnersForEmergency(date).map(p => `<option value="${p.display}" data-id="${p.id}"></option>`).join('')}
                         </datalist>
@@ -5840,6 +6026,24 @@
                 premeds = premeds.filter(p => p.id !== premedId);
                 saveToLocalStorage();
                 renderPremeds();
+            }
+        }
+        
+        function clearAllWeekendBookings() {
+            if (confirm('⚠️ WARNING: This will delete ALL weekend booking sessions and entries.\n\nThis action CANNOT be undone!\n\nAre you sure?')) {
+                weekendBookings = [];
+                saveToLocalStorage();
+                renderWeekendBookings();
+                alert('✅ All weekend bookings cleared');
+            }
+        }
+        
+        function clearAllPremeds() {
+            if (confirm('⚠️ WARNING: This will delete ALL premeds.\n\nThis action CANNOT be undone!\n\nAre you sure?')) {
+                premeds = [];
+                saveToLocalStorage();
+                renderPremeds();
+                alert('✅ All premeds cleared');
             }
         }
         
@@ -9049,5 +9253,280 @@
         });
     </script>
 </script>
+
+<!-- Activity Log Rendering Function -->
+<script>
+function renderActivityLog() {
+    if (!database) {
+        document.getElementById('activityList').innerHTML = '<p style="text-align: center; color: #dc2626; padding: 40px;">⚠️ Firebase not connected. Activity logging requires Firebase.</p>';
+        return;
+    }
+    
+    const limit = parseInt(document.getElementById('activityLimitFilter')?.value || 50);
+    const userFilter = document.getElementById('activityUserFilter')?.value || '';
+    
+    database.ref('activityLog').orderByChild('timestamp').limitToLast(limit).once('value', (snapshot) => {
+        const activities = [];
+        const users = new Set();
+        
+        snapshot.forEach((child) => {
+            const activity = child.val();
+            activities.unshift(activity); // Newest first
+            users.add(activity.userEmail);
+        });
+        
+        // Update user filter dropdown
+        const userFilterSelect = document.getElementById('activityUserFilter');
+        if (userFilterSelect) {
+            const currentValue = userFilterSelect.value;
+            userFilterSelect.innerHTML = '<option value="">All Users</option>' +
+                Array.from(users).map(email => 
+                    `<option value="${email}">${email}</option>`
+                ).join('');
+            userFilterSelect.value = currentValue;
+        }
+        
+        // Filter activities
+        const filteredActivities = userFilter ? 
+            activities.filter(a => a.userEmail === userFilter) : activities;
+        
+        // Render activities
+        const activityList = document.getElementById('activityList');
+        if (filteredActivities.length === 0) {
+            activityList.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No activities found</p>';
+            return;
+        }
+        
+        activityList.innerHTML = filteredActivities.map(activity => {
+            const date = new Date(activity.timestamp);
+            const timeAgo = getTimeAgo(date);
+            const actionIcons = {
+                'session_start': '🟢',
+                'session_end': '🔴',
+                'data_saved': '💾',
+                'slot_added': '➕',
+                'slot_deleted': '🗑️',
+                'slot_modified': '✏️'
+            };
+            const icon = actionIcons[activity.action] || '📝';
+            
+            return `
+                <div style="padding: 15px; margin-bottom: 12px; background: white; border-left: 4px solid #4A9B96; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 20px;">${icon}</span>
+                            <div>
+                                <div style="font-weight: 600; color: #577B7A; font-size: 15px;">${activity.userName}</div>
+                                <div style="font-size: 12px; color: #999;">${activity.userEmail}</div>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 12px; color: #666; font-weight: 500;">${timeAgo}</div>
+                            <div style="font-size: 11px; color: #999;">${date.toLocaleString('en-GB')}</div>
+                        </div>
+                    </div>
+                    <div style="font-size: 14px; color: #333; margin-left: 30px;">${activity.description}</div>
+                    ${activity.details && Object.keys(activity.details).length > 0 ? `
+                        <div style="margin-left: 30px; margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 12px; color: #666;">
+                            ${Object.entries(activity.details).map(([key, value]) => 
+                                `<span style="font-weight: 600;">${key}:</span> ${value}`
+                            ).join(' • ')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+    });
+}
+
+function getTimeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    
+    const intervals = {
+        year: 31536000,
+        month: 2592000,
+        week: 604800,
+        day: 86400,
+        hour: 3600,
+        minute: 60
+    };
+    
+    for (const [unit, secondsInUnit] of Object.entries(intervals)) {
+        const interval = Math.floor(seconds / secondsInUnit);
+        if (interval >= 1) {
+            return `${interval} ${unit}${interval === 1 ? '' : 's'} ago`;
+        }
+    }
+    
+    return 'Just now';
+}
+</script>
+
+<!-- Clerk Authentication Initialization -->
+<script>
+// Global variable to store current user
+window.currentUser = null;
+
+// Wait for Clerk to load
+window.addEventListener('load', async () => {
+    try {
+        // Get the publishable key
+        const publishableKey = document.querySelector('[data-clerk-publishable-key]')
+            ?.getAttribute('data-clerk-publishable-key');
+        
+        if (!publishableKey || publishableKey === 'pk_test_REPLACE_WITH_YOUR_CLERK_KEY') {
+            console.warn('⚠️ Clerk not configured. Please add your publishable key.');
+            // Show app anyway for development
+            document.getElementById('clerkAuthScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            return;
+        }
+        
+        // Initialize Clerk
+        const clerk = new window.Clerk(publishableKey);
+        await clerk.load();
+        
+        // Check authentication status
+        if (clerk.user) {
+            // User is signed in - show main app
+            document.getElementById('clerkAuthScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            
+            // Store user info for activity logging
+            window.currentUser = {
+                id: clerk.user.id,
+                email: clerk.user.primaryEmailAddress?.emailAddress || 'Unknown',
+                name: clerk.user.fullName || clerk.user.firstName || 
+                      clerk.user.primaryEmailAddress?.emailAddress || 'User'
+            };
+            
+            console.log('✅ Logged in as:', window.currentUser.name);
+            
+            // Add sign-out button to header
+            addSignOutButton(clerk);
+            
+            // Log session start
+            logActivity('session_start', 'User logged in');
+            
+        } else {
+            // User is not signed in - show auth screen
+            document.getElementById('clerkAuthScreen').style.display = 'flex';
+            document.getElementById('mainApp').style.display = 'none';
+            
+            // Mount the sign-in component
+            const signInDiv = document.getElementById('clerk-sign-in');
+            if (signInDiv) {
+                clerk.mountSignIn(signInDiv, {
+                    appearance: {
+                        elements: {
+                            rootBox: 'w-full',
+                            card: 'shadow-none'
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Listen for authentication changes
+        clerk.addListener(({ user }) => {
+            if (user) {
+                window.location.reload();
+            }
+        });
+        
+    } catch (error) {
+        console.error('Clerk initialization error:', error);
+        // Show app anyway if Clerk fails
+        document.getElementById('clerkAuthScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+    }
+});
+
+// Add sign-out button to header
+function addSignOutButton(clerk) {
+    const header = document.querySelector('.header');
+    if (!header) return;
+    
+    const signOutBtn = document.createElement('button');
+    signOutBtn.innerHTML = '🚪 Sign Out';
+    signOutBtn.className = 'no-print';
+    signOutBtn.style.cssText = 'position: absolute; right: 20px; top: 50%; transform: translateY(-50%); padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background 0.3s;';
+    signOutBtn.onmouseover = () => signOutBtn.style.background = '#b91c1c';
+    signOutBtn.onmouseout = () => signOutBtn.style.background = '#dc2626';
+    signOutBtn.onclick = async () => {
+        if (confirm('Are you sure you want to sign out?')) {
+            await clerk.signOut();
+            logActivity('session_end', 'User logged out');
+            window.location.reload();
+        }
+    };
+    
+    header.style.position = 'relative';
+    header.appendChild(signOutBtn);
+    
+    // Also add user name display
+    const userDisplay = document.createElement('div');
+    userDisplay.className = 'no-print';
+    userDisplay.style.cssText = 'position: absolute; right: 130px; top: 50%; transform: translateY(-50%); color: white; font-size: 13px;';
+    userDisplay.innerHTML = `👤 ${window.currentUser.name}`;
+    header.appendChild(userDisplay);
+}
+
+// Activity logging function
+function logActivity(action, description, details = {}) {
+    if (!window.currentUser || !database) return;
+    
+    const activity = {
+        id: Date.now(),
+        userId: window.currentUser.id,
+        userEmail: window.currentUser.email,
+        userName: window.currentUser.name,
+        action: action,
+        description: description,
+        details: details,
+        timestamp: new Date().toISOString(),
+        date: new Date().toLocaleDateString('en-GB')
+    };
+    
+    // Save to Firebase
+    try {
+        database.ref('activityLog').push(activity);
+        console.log('📝 Activity logged:', action);
+    } catch (error) {
+        console.error('Failed to log activity:', error);
+    }
+}
+
+// Enhanced save functions with activity logging
+const originalSaveToLocalStorage = saveToLocalStorage;
+saveToLocalStorage = function() {
+    originalSaveToLocalStorage.call(this);
+    if (window.currentUser) {
+        logActivity('data_saved', 'Schedule data saved');
+    }
+};
+
+// Log specific actions
+const originalAddSlotInline = addSlotInline;
+addSlotInline = function(date, session, hospital) {
+    originalAddSlotInline.call(this, date, session, hospital);
+    if (window.currentUser) {
+        logActivity('slot_added', `Added slot: ${hospital} - ${session}`, { date, session, hospital });
+    }
+};
+
+const originalDeleteSlotInline = deleteSlotInline;
+deleteSlotInline = function(slotId) {
+    const slot = scheduleData.find(s => s.id === slotId);
+    originalDeleteSlotInline.call(this, slotId);
+    if (window.currentUser && slot) {
+        logActivity('slot_deleted', `Deleted slot: ${slot.hospital} - ${slot.session}`, { 
+            hospital: slot.hospital, 
+            session: slot.session 
+        });
+    }
+};
+</script>
+
 </body>
 </html>
